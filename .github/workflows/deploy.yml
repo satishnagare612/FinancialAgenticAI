@@ -47,9 +47,9 @@ jobs:
           az acr build \
             --registry ${{ secrets.ACR_NAME }} \
             --image financialai-ai:${{ github.sha }} \
-            --file Dockerfile \
+            --file services/ai/Dockerfile \
             --platform linux/amd64 \
-            services/ai
+            .
 
       - name: Deploy API Container App
         run: |
