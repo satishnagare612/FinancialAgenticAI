@@ -1,0 +1,25 @@
+﻿{
+  "name": "retirement-projection-basic",
+  "input": {
+    "initialBalance": 100000,
+    "periodicContribution": 500,
+    "annualReturnRate": 0.06,
+    "annualInflationRate": 0.025,
+    "years": 20
+  },
+  "expectedProjections": [
+    {
+      "period": 0,
+      "nominalBalance": 100000,
+      "inflationAdjustedBalance": 100000
+    }
+  ],
+  "retrievedContext": [
+    {
+      "sourceId": "src-001",
+      "text": "Long-run equity returns historically...",
+      "uri": "https://example.org/source-001"
+    }
+  ],
+  "expectedDecision": "approve"
+}

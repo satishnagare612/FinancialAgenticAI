@@ -1,0 +1,35 @@
+# Build output
+**/bin/
+**/obj/
+**/publish/
+
+# Other services — not part of the API build context
+web/
+services/ai/
+tests/
+infra/
+
+# Git and CI
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+
+# Docs and scratch
+*.md
+combined_*.txt
+api-test-results.json
+README.md
+docker-compose.yml
