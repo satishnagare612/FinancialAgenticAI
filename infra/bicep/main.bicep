@@ -19,9 +19,6 @@ param baseName string = 'financialai'
 @secure()
 param authSigningKey string
 
-@description('Container image tags')
-param apiImageTag string = 'latest'
-param aiImageTag string = 'latest'
 
 // ---------- Log Analytics + App Insights ----------
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
@@ -200,6 +197,25 @@ resource acrRoleApi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+
+// RBAC propagation wait
+// Azure RBAC role assignments take 60-300 s to propagate from the
+// control plane to the data plane. Container Apps fetch Key Vault
+// secrets at revision-provisioning time, so the Key Vault Secrets
+// User role must be effective before the Container App is created.
+resource waitForRbac 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'wait-for-rbac-propagation'
+  location: location
+  kind: 'AzurePowerShell'
+  properties: {
+    azPowerShellVersion: '11.0'
+    scriptContent: 'Start-Sleep -Seconds 180'
+    retentionInterval: 'PT1H'
+    timeout: 'PT10M'
+  }
+  dependsOn: [kvRoleApi]
+}
+
 // ---------- Container Apps Environment ----------
 resource containerEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
   name: '${baseName}-env-${environment}'
@@ -219,6 +235,12 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
 resource apiApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
   name: '${baseName}-api'
   location: location
+  dependsOn: [
+    waitForRbac
+    kvCosmos
+    kvServiceBus
+    kvAuth
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: { '${apiIdentity.id}': {} }
@@ -259,7 +281,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
       containers: [
         {
           name: 'api'
-          image: '${acr.properties.loginServer}/${baseName}-api:${apiImageTag}'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
@@ -300,6 +322,9 @@ resource apiApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
 resource aiApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
   name: '${baseName}-ai'
   location: location
+  dependsOn: [
+    waitForRbac
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: { '${apiIdentity.id}': {} }
@@ -323,7 +348,7 @@ resource aiApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
       containers: [
         {
           name: 'ai'
-          image: '${acr.properties.loginServer}/${baseName}-ai:${aiImageTag}'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
             { name: 'LLM_PROVIDER', value: 'stub' }
@@ -361,3 +386,4 @@ output cosmosEndpoint string = cosmos.properties.documentEndpoint
 output serviceBusNamespace string = serviceBus.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
 output apiManagedIdentityClientId string = apiIdentity.properties.clientId
+

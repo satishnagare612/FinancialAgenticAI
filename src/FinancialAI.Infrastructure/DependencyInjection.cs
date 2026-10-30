@@ -1,5 +1,3 @@
-using Polly.Timeout;
-using Polly.Retry;
 using Polly;
 using Azure.Messaging.ServiceBus;
 using FinancialAI.Application.Ports;
@@ -12,6 +10,8 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Azure.Messaging.ServiceBus.Administration;
+using Microsoft.Extensions.Http.Resilience;
+
 
 
 namespace FinancialAI.Infrastructure;
@@ -76,35 +76,51 @@ public static class DependencyInjection
                 configuration["AiService:BaseUrl"]
                 ?? configuration["AiService__BaseUrl"]
                 ?? throw new InvalidOperationException("AiService:BaseUrl is required."));
-            client.Timeout = TimeSpan.FromSeconds(
-                configuration.GetValue("AiService:TimeoutSeconds", 120));
+            client.Timeout = Timeout.InfiniteTimeSpan;
         })
-        .AddResilienceHandler("ai-pipeline", (builder, context) =>
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
         {
-            builder.AddRetry(new Polly.Retry.RetryStrategyOptions<HttpResponseMessage>
+            // Set an appropriate limit based on expected concurrency
+            MaxConnectionsPerServer = 20,
+            // Rotate connections periodically to avoid stale connections
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+        })
+        .AddResilienceHandler("AiServicePipeline", builder =>
+        {
+            // Add a retry strategy with exponential backoff
+            builder.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 3,
-                Delay = TimeSpan.FromSeconds(1),
-                BackoffType = Polly.DelayBackoffType.Exponential,
+                Delay = TimeSpan.FromSeconds(5),
+                BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
+                // Handle timeouts and transient HTTP errors
                 ShouldHandle = args => ValueTask.FromResult(
-                    args.Outcome.Result is null
-                    || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
+                     args.Outcome.Result is null
+                     || args.Outcome.Exception is TimeoutException
+                     || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
             });
-            builder.AddTimeout(TimeSpan.FromSeconds(90));
+            builder.AddTimeout(TimeSpan.FromMinutes(5));
         });
+        // .AddResilienceHandler("ai-pipeline", (builder, context) =>
+        // {
+        //     builder.AddRetry(new Polly.Retry.RetryStrategyOptions<HttpResponseMessage>
+        //     {
+        //         MaxRetryAttempts = 3,
+        //         Delay = TimeSpan.FromSeconds(1),
+        //         BackoffType = Polly.DelayBackoffType.Exponential,
+        //         UseJitter = true,
+        //         ShouldHandle = args => ValueTask.FromResult(
+        //             args.Outcome.Result is null
+        //             || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
+        //     });
+        //     builder.AddTimeout(TimeSpan.FromSeconds(90));
+        // });
 
         var serviceBusEnabled = configuration.GetValue<bool>("ServiceBus:Enabled", defaultValue: false);
 
         if (serviceBusEnabled)
         {
-            var serviceBusConnectionString =
-                configuration["ServiceBus__ConnectionString"]
-                ?? configuration["ServiceBus:ConnectionString"]
-                ?? throw new InvalidOperationException(
-                    "ServiceBus connection string is not configured. " +
-                    "Set ServiceBus__ConnectionString or ServiceBus:ConnectionString.");
-
             services.AddHostedService<ServiceBusOutboxDispatcher>();
 
             services.AddMassTransit(cfg =>
