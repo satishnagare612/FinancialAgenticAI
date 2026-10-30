@@ -32,9 +32,7 @@ class Embedder(Protocol):
 
 class VectorIndex(Protocol):
     def add(self, chunk: IndexedChunk) -> None: ...
-    def search(
-        self, query_embedding: Sequence[float], top_k: int
-    ) -> list[IndexedChunk]: ...
+    def search(self, query_embedding: Sequence[float], top_k: int) -> list[IndexedChunk]: ...
 
 
 class HashingEmbedder:
@@ -72,12 +70,8 @@ class InMemoryVectorIndex:
     def add(self, chunk: IndexedChunk) -> None:
         self._chunks.append(chunk)
 
-    def search(
-        self, query_embedding: Sequence[float], top_k: int
-    ) -> list[IndexedChunk]:
-        scored = [
-            (_cosine(query_embedding, c.embedding), c) for c in self._chunks
-        ]
+    def search(self, query_embedding: Sequence[float], top_k: int) -> list[IndexedChunk]:
+        scored = [(_cosine(query_embedding, c.embedding), c) for c in self._chunks]
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return [c for score, c in scored[:top_k] if score > 0.0]
 

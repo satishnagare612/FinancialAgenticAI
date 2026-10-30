@@ -15,9 +15,7 @@ from app.rag.vector_index import Embedder, IndexedChunk, VectorIndex
 
 
 class Retriever(Protocol):
-    async def retrieve(
-        self, query: str, top_k: int = 5
-    ) -> list[RetrievedContextItem]: ...
+    async def retrieve(self, query: str, top_k: int = 5) -> list[RetrievedContextItem]: ...
 
 
 class VectorRetriever:
@@ -38,12 +36,9 @@ class VectorRetriever:
                 )
             )
 
-    async def retrieve(
-        self, query: str, top_k: int = 5
-    ) -> list[RetrievedContextItem]:
+    async def retrieve(self, query: str, top_k: int = 5) -> list[RetrievedContextItem]:
         query_embedding = self._embedder.embed(query)
         results = self._index.search(query_embedding, top_k)
         return [
-            RetrievedContextItem(source_id=r.source_id, text=r.text, uri=r.uri)
-            for r in results
+            RetrievedContextItem(source_id=r.source_id, text=r.text, uri=r.uri) for r in results
         ]

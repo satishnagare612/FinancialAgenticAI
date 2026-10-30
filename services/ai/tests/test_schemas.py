@@ -12,5 +12,7 @@ def test_analysis_rejects_out_of_range_confidence():
 def test_review_rejects_unknown_decision():
     with pytest.raises(ValidationError):
         ReviewResponse(
-            approved=True, final_confidence=0.9, decision="banana"  # type: ignore[arg-type]
+            approved=True,
+            final_confidence=0.9,
+            decision="banana",  # type: ignore[arg-type]
         )

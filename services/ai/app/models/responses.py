@@ -10,6 +10,7 @@ class RetrievedContextItem(CamelModel):
     text: str
     uri: str | None = None
 
+
 class AnalysisDraft(CamelModel):
     """LLM structured output from the analysis node.
 
@@ -22,6 +23,7 @@ class AnalysisDraft(CamelModel):
     confidence: float = Field(ge=0.0, le=1.0)
     cited_sources: list[str] = Field(default_factory=list)
 
+
 class AnalysisResponse(CamelModel):
     """Wire response returned by /v1/analyze."""
 
@@ -30,6 +32,7 @@ class AnalysisResponse(CamelModel):
     confidence: float = Field(ge=0.0, le=1.0)
     cited_sources: list[str] = Field(default_factory=list)
     decision: Literal["approve", "revise", "human_review"]
+
 
 class ReviewResponse(CamelModel):
     """LLM structured output from the review node."""

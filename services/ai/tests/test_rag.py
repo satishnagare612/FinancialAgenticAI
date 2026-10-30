@@ -27,12 +27,8 @@ def test_empty_text_yields_no_chunks():
 @pytest.mark.asyncio
 async def test_retriever_returns_relevant_chunks_first():
     retriever = VectorRetriever(InMemoryVectorIndex(), HashingEmbedder())
-    retriever.add_documents(
-        chunk_text("src-retirement", "retirement equity portfolio projection")
-    )
-    retriever.add_documents(
-        chunk_text("src-food", "recipe for chocolate cake with butter")
-    )
+    retriever.add_documents(chunk_text("src-retirement", "retirement equity portfolio projection"))
+    retriever.add_documents(chunk_text("src-food", "recipe for chocolate cake with butter"))
 
     results = await retriever.retrieve("retirement projection", top_k=5)
 

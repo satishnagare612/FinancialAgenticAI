@@ -1446,13 +1446,15 @@ def build_graph(llm: BaseChatModel, retriever, max_revisions: int = 2):
         return state
 
     async def analysis_node(state: AgentState) -> AgentState:
-        result: AnalysisResponse = await structured_analysis.ainvoke([
-            {
-                "role": "system",
-                "content": "Explain projections cautiously. Cite only supplied sources.",
-            },
-            {"role": "user", "content": str(state["projections"])},
-        ])
+        result: AnalysisResponse = await structured_analysis.ainvoke(
+            [
+                {
+                    "role": "system",
+                    "content": "Explain projections cautiously. Cite only supplied sources.",
+                },
+                {"role": "user", "content": str(state["projections"])},
+            ]
+        )
         state.update(
             narrative=result.narrative,
             key_risks=result.key_risks,
@@ -1474,13 +1476,15 @@ def build_graph(llm: BaseChatModel, retriever, max_revisions: int = 2):
             state["revision_count"] += 1
             return state
 
-        review: ReviewResponse = await structured_review.ainvoke([
-            {
-                "role": "system",
-                "content": "Check numbers match deterministic projections and all claims are cited.",
-            },
-            {"role": "user", "content": state["narrative"] or ""},
-        ])
+        review: ReviewResponse = await structured_review.ainvoke(
+            [
+                {
+                    "role": "system",
+                    "content": "Check numbers match deterministic projections and all claims are cited.",
+                },
+                {"role": "user", "content": state["narrative"] or ""},
+            ]
+        )
         state["review"] = review
         if review.decision == "revise":
             state["revision_count"] += 1
@@ -1541,18 +1545,20 @@ async def readyz():
 @app.post("/v1/analyze", response_model=AnalysisResponse)
 async def analyze(payload: AnalyzeRequest):
     graph = app.state.graph
-    result = await graph.ainvoke({
-        "report_id": payload.report_id,
-        "correlation_id": payload.correlation_id,
-        "projections": payload.projections.model_dump(),
-        "retrieved_context": [c.model_dump() for c in payload.retrieved_context],
-        "narrative": None,
-        "key_risks": [],
-        "confidence": 0.0,
-        "cited_sources": [],
-        "review": None,
-        "revision_count": 0,
-    })
+    result = await graph.ainvoke(
+        {
+            "report_id": payload.report_id,
+            "correlation_id": payload.correlation_id,
+            "projections": payload.projections.model_dump(),
+            "retrieved_context": [c.model_dump() for c in payload.retrieved_context],
+            "narrative": None,
+            "key_risks": [],
+            "confidence": 0.0,
+            "cited_sources": [],
+            "review": None,
+            "revision_count": 0,
+        }
+    )
     return AnalysisResponse(
         narrative=result["narrative"] or "",
         key_risks=result["key_risks"],
@@ -2043,7 +2049,9 @@ def test_analysis_rejects_out_of_range_confidence():
 def test_review_rejects_unknown_decision():
     with pytest.raises(ValidationError):
         ReviewResponse(
-            approved=True, final_confidence=0.9, decision="banana"  # type: ignore[arg-type]
+            approved=True,
+            final_confidence=0.9,
+            decision="banana",  # type: ignore[arg-type]
         )
 ```
 

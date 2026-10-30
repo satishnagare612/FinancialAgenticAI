@@ -1,4 +1,4 @@
-﻿"""Recursive text chunking for retrieval indexing.
+"""Recursive text chunking for retrieval indexing.
 
 Chunk boundaries fall on paragraph breaks when possible, otherwise on
 sentence boundaries, otherwise on hard character limits.

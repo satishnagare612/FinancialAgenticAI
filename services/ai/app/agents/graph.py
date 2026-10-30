@@ -11,12 +11,12 @@ from app.models.responses import (
 from app.rag.retriever import Retriever
 
 _ANALYSIS_SYSTEM_PROMPT = "Explain projections cautiously. Cite only supplied sources."
-_REVIEW_SYSTEM_PROMPT = (
-    "Check numbers match deterministic projections and all claims are cited."
-)
+_REVIEW_SYSTEM_PROMPT = "Check numbers match deterministic projections and all claims are cited."
+
 
 class StructuredLlm(Protocol):
     def with_structured_output(self, schema: type[BaseModel]) -> Any: ...
+
 
 class AgentState(TypedDict):
     report_id: str
@@ -30,9 +30,8 @@ class AgentState(TypedDict):
     review: ReviewResponse | None
     revision_count: int
 
-def build_graph(
-    llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
-) -> Any:
+
+def build_graph(llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2) -> Any:
     structured_analysis = llm.with_structured_output(AnalysisDraft)
     structured_review = llm.with_structured_output(ReviewResponse)
 
@@ -41,10 +40,7 @@ def build_graph(
         # corpus. report_id is a UUID with no semantic content; querying on it
         # always returns [] with HashingEmbedder because the token sets are
         # disjoint. Query on the domain terms the corpus is about instead.
-        query = (
-            "retirement projection equity returns inflation "
-            "nominal adjusted balance"
-        )
+        query = "retirement projection equity returns inflation nominal adjusted balance"
         items = await retriever.retrieve(query=query, top_k=5)
         state["retrieved_context"] = items
         return state
@@ -62,7 +58,7 @@ def build_graph(
             f"Retrieved context (cite source ids from this list only):\n"
             f"{context_text}"
         )
-    
+
         draft: AnalysisDraft = await structured_analysis.ainvoke(
             [
                 {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
@@ -77,9 +73,7 @@ def build_graph(
 
     async def review_node(state: AgentState) -> AgentState:
         supplied_ids = {c.source_id for c in state["retrieved_context"]}
-        invalid_citations = [
-            c for c in state["cited_sources"] if c not in supplied_ids
-        ]
+        invalid_citations = [c for c in state["cited_sources"] if c not in supplied_ids]
         if invalid_citations:
             state["review"] = ReviewResponse(
                 approved=False,
@@ -116,7 +110,5 @@ def build_graph(
     graph.set_entry_point("retrieval")
     graph.add_edge("retrieval", "analysis")
     graph.add_edge("analysis", "review")
-    graph.add_conditional_edges(
-        "review", route_after_review, {"analysis": "analysis", "end": END}
-    )
+    graph.add_conditional_edges("review", route_after_review, {"analysis": "analysis", "end": END})
     return graph.compile()

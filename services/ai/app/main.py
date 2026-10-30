@@ -44,9 +44,7 @@ class _StubStructuredRunnable:
 
 
 class _StubLlm:
-    def with_structured_output(
-        self, schema: type[BaseModel]
-    ) -> _StubStructuredRunnable:
+    def with_structured_output(self, schema: type[BaseModel]) -> _StubStructuredRunnable:
         if schema is AnalysisDraft:
             return _StubStructuredRunnable(
                 lambda _msgs: AnalysisDraft(
@@ -89,9 +87,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "several percentage points. Retirement projections should disclose "
         "both nominal and inflation-adjusted balances."
     )
-    retriever.add_documents(
-        chunk_text("src-001", seed, uri="https://example.org/src-001")
-    )
+    retriever.add_documents(chunk_text("src-001", seed, uri="https://example.org/src-001"))
 
     app.state.graph = build_graph(_StubLlm(), retriever, max_revisions=2)
     app.state.retriever = retriever
@@ -175,10 +171,7 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         )
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Graph terminated without a review decision "
-                f"(report_id={payload.report_id})."
-            ),
+            detail=(f"Graph terminated without a review decision (report_id={payload.report_id})."),
         )
 
     logger.info(
