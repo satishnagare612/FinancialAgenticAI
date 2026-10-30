@@ -16,7 +16,12 @@ public static class AuthEndpoints
             IConfiguration configuration,
             IHostEnvironment environment) =>
         {
-            if (!environment.IsDevelopment())
+            // Development always allows. Staging may opt in via
+            // Auth:AllowDevTokenEndpoint. Production leaves the flag unset
+            // (defaults to false) so the endpoint returns 404 there.
+            var allowInStaging =
+                configuration.GetValue<bool>("Auth:AllowDevTokenEndpoint");
+            if (!environment.IsDevelopment() && !allowInStaging)
             {
                 return Results.NotFound();
             }
@@ -36,3 +41,4 @@ public static class AuthEndpoints
     public sealed record DevTokenRequest(string UserId);
     public sealed record DevTokenResponse(string Token, string UserId);
 }
+
