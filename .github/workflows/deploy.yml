@@ -1,10 +1,7 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,7 +9,6 @@ permissions:
 
 jobs:
   deploy-api:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -32,7 +28,6 @@ jobs:
           package: ./publish
 
   deploy-ai:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -52,3 +47,4 @@ jobs:
             --name financialai-ai \
             --resource-group ${{ secrets.AZURE_RG }} \
             --image ${{ secrets.ACR_NAME }}.azurecr.io/financialai-ai:${{ github.sha }}
+
