@@ -1,21 +1,20 @@
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
 
 import structlog
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.agents.graph import build_graph
+from app.config import settings
+from app.llm.provider import build_real_llm
+from app.llm.stub import StubLlm
 from app.models.requests import AnalyzeRequest
 from app.models.responses import (
-    AnalysisDraft,
     AnalysisResponse,
-    ReviewResponse,
 )
 from app.rag.chunking import chunk_text
 from app.rag.retriever import VectorRetriever
@@ -35,45 +34,6 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-class _StubStructuredRunnable:
-    def __init__(self, response_factory: Callable[[Any], Any]) -> None:
-        self._factory = response_factory
-
-    async def ainvoke(self, messages: Any) -> Any:
-        return self._factory(messages)
-
-
-class _StubLlm:
-    def with_structured_output(self, schema: type[BaseModel]) -> _StubStructuredRunnable:
-        if schema is AnalysisDraft:
-            return _StubStructuredRunnable(
-                lambda _msgs: AnalysisDraft(
-                    narrative=(
-                        "Stub narrative. Replace _StubLlm with a real provider. "
-                        "The retirement projection shows continuous growth driven "
-                        "by compounding equity returns against inflation."
-                    ),
-                    key_risks=[
-                        "Inflation uncertainty may reduce real returns",
-                        "Equity market volatility can affect nominal balances",
-                    ],
-                    confidence=0.92,
-                    # Retrieval now returns the seeded src-001 chunk (Issue 11 fix),
-                    # so the review node accepts this citation. When Issue 11's
-                    # real-provider follow-up lands, this stub is deleted entirely.
-                    cited_sources=["src-001"],
-                )
-            )
-        if schema is ReviewResponse:
-            return _StubStructuredRunnable(
-                lambda _msgs: ReviewResponse(
-                    approved=True,
-                    issues=[],
-                    final_confidence=0.92,
-                    decision="approve",
-                )
-            )
-        raise ValueError(f"Unsupported schema: {schema!r}")
 
 
 @asynccontextmanager
@@ -89,7 +49,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     retriever.add_documents(chunk_text("src-001", seed, uri="https://example.org/src-001"))
 
-    app.state.graph = build_graph(_StubLlm(), retriever, max_revisions=2)
+    if settings.llm_provider == "real":
+        llm = build_real_llm(
+            base_url=settings.llm_base_url,
+            api_key=settings.llm_api_key,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            timeout_seconds=settings.llm_timeout_seconds,
+            max_retries=settings.llm_max_retries,
+        )
+    else:
+        llm = StubLlm()
+    app.state.graph = build_graph(llm, retriever, max_revisions=2)
+    app.state.llm_provider = settings.llm_provider
     app.state.retriever = retriever
     yield
 
@@ -193,4 +165,6 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         cited_sources=result["cited_sources"],
         decision=review.decision,
     )
+
+
 

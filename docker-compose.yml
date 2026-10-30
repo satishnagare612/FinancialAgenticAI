@@ -20,7 +20,8 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
-
+      - LLM_PROVIDER=stub
+      # For real model: set LLM_PROVIDER=real and provide LLM_API_KEY via .env.
   api:
     build:
       context: .
@@ -52,3 +53,4 @@ services:
       - INTERNAL_API_BASE_URL=http://api:8080
     depends_on:
       - api
+
