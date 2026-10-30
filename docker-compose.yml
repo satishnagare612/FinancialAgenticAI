@@ -21,7 +21,10 @@ services:
     environment:
       - PORT=8000
       - LLM_PROVIDER=stub
-      # For real model: set LLM_PROVIDER=real and provide LLM_API_KEY via .env.
+      # To try a real provider without editing this file:
+      #   $env:LLM_PROVIDER="real"; $env:LLM_PRESET="groq"; $env:LLM_API_KEY="..."
+      #   docker compose up -d --force-recreate ai
+      # Presets: openrouter, groq, gemini, cerebras, mistral, github, ollama      # For real model: set LLM_PROVIDER=real and provide LLM_API_KEY via .env.
   api:
     build:
       context: .
@@ -53,4 +56,5 @@ services:
       - INTERNAL_API_BASE_URL=http://api:8080
     depends_on:
       - api
+
 

@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.agents.graph import build_graph
-from app.config import settings
+from app.config import resolve_llm_config, settings
 from app.llm.provider import build_real_llm
 from app.llm.stub import StubLlm
 from app.models.requests import AnalyzeRequest
@@ -50,10 +50,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     retriever.add_documents(chunk_text("src-001", seed, uri="https://example.org/src-001"))
 
     if settings.llm_provider == "real":
+        base_url, model, structured_method = resolve_llm_config()
         llm = build_real_llm(
-            base_url=settings.llm_base_url,
+            base_url=base_url,
             api_key=settings.llm_api_key,
-            model=settings.llm_model,
+            model=model,
+            structured_method=structured_method,
             temperature=settings.llm_temperature,
             timeout_seconds=settings.llm_timeout_seconds,
             max_retries=settings.llm_max_retries,
@@ -165,6 +167,8 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         cited_sources=result["cited_sources"],
         decision=review.decision,
     )
+
+
 
 
 
