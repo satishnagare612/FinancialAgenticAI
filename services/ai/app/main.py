@@ -1,14 +1,12 @@
 import uuid
-
-import structlog
-from starlette.middleware.base import BaseHTTPMiddleware
-
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import structlog
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.agents.graph import build_graph
 from app.models.requests import AnalyzeRequest
