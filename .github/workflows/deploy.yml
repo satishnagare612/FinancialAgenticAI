@@ -1,50 +1,91 @@
 name: Deploy
 
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
-jobs:
-  deploy-api:
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-      - run: dotnet publish src/FinancialAI.Api -c Release -o ./publish
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          package: ./publish
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
-  deploy-ai:
+jobs:
+  deploy:
+    if: |
+      vars.AZURE_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/login@v2
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push API image
+        run: |
+          az acr build \
+            --registry ${{ secrets.ACR_NAME }} \
+            --image financialai-api:${{ github.sha }} \
+            --file src/FinancialAI.Api/Dockerfile \
+            --platform linux/amd64 \
+            .
+
       - name: Build and push AI image
         run: |
-          az acr build --registry ${{ secrets.ACR_NAME }} \
-            --image financialai-ai:${{ github.sha }} services/ai
-      - name: Deploy container to Container Apps
+          az acr build \
+            --registry ${{ secrets.ACR_NAME }} \
+            --image financialai-ai:${{ github.sha }} \
+            --file services/ai/Dockerfile \
+            --platform linux/amd64 \
+            services/ai
+
+      - name: Deploy API Container App
         run: |
           az containerapp update \
-            --name financialai-ai \
+            --name financialai2-api \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --image ${{ secrets.ACR_NAME }}.azurecr.io/financialai-api:${{ github.sha }}
+
+      - name: Deploy AI Container App
+        run: |
+          az containerapp update \
+            --name financialai2-ai \
             --resource-group ${{ secrets.AZURE_RG }} \
             --image ${{ secrets.ACR_NAME }}.azurecr.io/financialai-ai:${{ github.sha }}
 
+      - name: Smoke test — API readiness
+        run: |
+          API_URL=$(az containerapp show \
+            --name financialai2-api \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "API host: $API_URL"
+
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$API_URL/healthz" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "API healthy after $i attempt(s)"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS, retrying in 10s..."
+            sleep 10
+          done
+
+          echo "API did not become healthy within 5 minutes"
+          exit 1
+
+      - name: Logout
+        if: always()
+        run: az logout
