@@ -6,9 +6,9 @@ import type {
 
 const BASE =
   typeof window === "undefined"
-    ? (process.env.INTERNAL_API_BASE_URL
-        ?? process.env.NEXT_PUBLIC_API_BASE_URL
-        ?? "http://localhost:8080")
+    ? (process.env.INTERNAL_API_BASE_URL ??
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://localhost:8080")
     : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080");
 
 async function handle<T>(res: Response): Promise<T> {
@@ -45,7 +45,10 @@ async function getAuthToken(): Promise<string> {
   return data.token;
 }
 
-async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+async function authedFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
   const token = await getAuthToken();
   return fetch(`${BASE}${path}`, {
     ...init,
@@ -95,7 +98,7 @@ export async function getProfile(): Promise<FinancialProfile | null> {
 }
 
 export async function upsertProfile(
-  input: FinancialProfileInput
+  input: FinancialProfileInput,
 ): Promise<FinancialProfile> {
   const res = await authedFetch(`/api/profile`, {
     method: "PUT",

@@ -2,12 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getReport, getReportDetail } from "@/lib/api";
 import { ReportStatus } from "@/components/report-status";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { ReportState } from "@/lib/types";
 
