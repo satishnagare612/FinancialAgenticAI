@@ -70,3 +70,6 @@ sb-logs/
 
 # ---------- Docker ----------
 *.pid
+
+# Bicep compiled output
+infra/bicep/main.json
