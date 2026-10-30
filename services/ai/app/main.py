@@ -1,14 +1,14 @@
 import uuid
-
-import structlog
-from starlette.middleware.base import BaseHTTPMiddleware
-
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import structlog
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.agents.graph import build_graph
 from app.models.requests import AnalyzeRequest
@@ -95,7 +95,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 class CorrelationMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         correlation_id = request.headers.get("X-Correlation-Id") or str(uuid.uuid4())
         structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
         try:
@@ -189,3 +193,4 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         cited_sources=result["cited_sources"],
         decision=review.decision,
     )
+
