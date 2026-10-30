@@ -1,35 +1,47 @@
-# Build output
+# Build output — excluded everywhere
 **/bin/
 **/obj/
 **/publish/
 
-# Other services — not part of the API build context
-web/
-services/ai/
-tests/
-infra/
-
-# Git and CI
-.git/
-.gitignore
-.gitattributes
-.github/
+# Package caches — excluded everywhere
+**/node_modules/
+**/.next/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.turbo/
+**/htmlcov/
+**/.coverage
 
 # IDE
-.vs/
-.vscode/
-.idea/
-*.user
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+
+# Git
+.git/
+.github/
 
 # Secrets and local config
 .env
 .env.*
 !.env.example
+!**/.env.example
 appsettings.Local.json
+**/*.pfx
+**/*.p12
 
 # Docs and scratch
 *.md
 combined_*.txt
 api-test-results.json
-README.md
 docker-compose.yml
+
+# OS
+.DS_Store
+Thumbs.db
