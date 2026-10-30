@@ -1,0 +1,42 @@
+{
+  "acrLoginServer": {
+    "type": "String",
+    "value": "financialai2acrkueabdy2etmmk.azurecr.io"
+  },
+  "acrName": {
+    "type": "String",
+    "value": "financialai2acrkueabdy2etmmk"
+  },
+  "aiFqdn": {
+    "type": "String",
+    "value": "financialai2-ai.internal.orangebeach-d8d99d7a.eastus2.azurecontainerapps.io"
+  },
+  "apiFqdn": {
+    "type": "String",
+    "value": "financialai2-api.orangebeach-d8d99d7a.eastus2.azurecontainerapps.io"
+  },
+  "apiManagedIdentityClientId": {
+    "type": "String",
+    "value": "514ecd10-9ceb-4179-a557-9bef1e53963a"
+  },
+  "apiUrl": {
+    "type": "String",
+    "value": "https://financialai2-api.orangebeach-d8d99d7a.eastus2.azurecontainerapps.io"
+  },
+  "appInsightsConnectionString": {
+    "type": "String",
+    "value": "InstrumentationKey=abab0673-7e0f-4454-9ba8-7119992790d4;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=4f625a83-2762-4b0a-85c0-153c31b1dd2a"
+  },
+  "cosmosEndpoint": {
+    "type": "String",
+    "value": "https://financialai2-cosmos-kueabdy2etmmk.documents.azure.com:443/"
+  },
+  "keyVaultName": {
+    "type": "String",
+    "value": "financialai2-kv-kueabdy2"
+  },
+  "serviceBusNamespace": {
+    "type": "String",
+    "value": "financialai2-sb-kueabdy2etmmk"
+  }
+}

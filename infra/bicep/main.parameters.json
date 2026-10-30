@@ -2,12 +2,16 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "environment": { "value": "staging" },
-    "baseName": { "value": "financialai" },
+    "environment": {
+      "value": "staging"
+    },
+    "baseName": { "value": "financialai2" },
     "authSigningKey": {
       "value": "REPLACE-WITH-32-BYTES-OR-REFERENCE-FROM-KEY-VAULT"
     },
-    "apiImageTag": { "value": "latest" },
-    "aiImageTag": { "value": "latest" }
+    "location": {
+      "value": "eastus2"
+    }
   }
 }
+

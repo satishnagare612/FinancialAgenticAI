@@ -14,13 +14,12 @@ public sealed class AiServiceClient : IAiServiceClient
     public async Task<AiServiceAnalyzeResponse> AnalyzeAsync(
         AiServiceAnalyzeRequest request, CancellationToken ct)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Post, "/v1/analyze")
-        {
-            Content = JsonContent.Create(request),
-        };
-        message.Headers.Add("X-Correlation-Id", request.CorrelationId);
+        // Combine the external cancellation token with a per-request timeout (e.g., 300s)
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(300));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
-        using var response = await _http.SendAsync(message, ct);
+        // Use linkedCts.Token for the HTTP call
+        var response = await _http.PostAsJsonAsync("/v1/analyze", request, linkedCts.Token);
 
         if (!response.IsSuccessStatusCode)
         {
