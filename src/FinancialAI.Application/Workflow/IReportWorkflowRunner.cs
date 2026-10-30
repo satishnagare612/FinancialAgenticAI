@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Workflow;
+using FinancialAI.Application.Workflow;
 
 namespace FinancialAI.Application.Ports;
 

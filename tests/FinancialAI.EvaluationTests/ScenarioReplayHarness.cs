@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using FinancialAI.Application.Ports;
 using FinancialAI.Application.Projections;
 using FinancialAI.EvaluationTests;

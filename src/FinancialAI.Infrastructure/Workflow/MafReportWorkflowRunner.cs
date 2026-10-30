@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Ports;
+using FinancialAI.Application.Ports;
 using FinancialAI.Application.Workflow;
 using Microsoft.Agents.AI.Workflows;
 using WorkflowType = Microsoft.Agents.AI.Workflows.Workflow;

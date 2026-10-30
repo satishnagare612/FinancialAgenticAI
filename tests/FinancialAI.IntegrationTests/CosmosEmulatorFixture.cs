@@ -1,4 +1,4 @@
-﻿using FinancialAI.Infrastructure.Cosmos;
+using FinancialAI.Infrastructure.Cosmos;
 using Microsoft.Azure.Cosmos;
 using Xunit;
 

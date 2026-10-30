@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Projections;
+using FinancialAI.Application.Projections;
 using FinancialAI.Domain;
 
 namespace FinancialAI.Infrastructure.Workflow;

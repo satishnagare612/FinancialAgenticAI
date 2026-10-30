@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Ports;
+using FinancialAI.Application.Ports;
 using FinancialAI.Domain;
 using Microsoft.Azure.Cosmos;
 

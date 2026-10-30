@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Contracts;
+using FinancialAI.Application.Contracts;
 using FinancialAI.Application.Ports;
 using FinancialAI.Application.Workflow;
 using FinancialAI.Domain;

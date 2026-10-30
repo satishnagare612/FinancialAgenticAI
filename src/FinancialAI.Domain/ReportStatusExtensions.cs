@@ -1,4 +1,4 @@
-﻿namespace FinancialAI.Domain;
+namespace FinancialAI.Domain;
 
 /// <summary>
 /// Wire-format mapping for <see cref="ReportStatus"/>.

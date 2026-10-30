@@ -52,13 +52,13 @@ public static class DependencyInjection
         });
 
         // Bootstrap the database and containers in Development (and only in
-// Development). In production, containers are provisioned by Bicep and
-// the API runs under an identity with data-plane-only permissions —
-// CreateDatabaseIfNotExistsAsync would return 403 Forbidden.
-if (configuration.GetValue<bool>("Cosmos:BootstrapContainers", defaultValue: false))
-{
-    services.AddHostedService<CosmosBootstrapperService>();
-}
+        // Development). In production, containers are provisioned by Bicep and
+        // the API runs under an identity with data-plane-only permissions —
+        // CreateDatabaseIfNotExistsAsync would return 403 Forbidden.
+        if (configuration.GetValue<bool>("Cosmos:BootstrapContainers", defaultValue: false))
+        {
+            services.AddHostedService<CosmosBootstrapperService>();
+        }
 
         services.AddScoped<IFinancialProfileRepository, CosmosFinancialProfileRepository>();
         services.AddScoped<IReportRepository, CosmosReportRepository>();

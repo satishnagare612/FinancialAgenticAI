@@ -1,4 +1,4 @@
-﻿using FinancialAI.Domain;
+using FinancialAI.Domain;
 using Xunit;
 
 namespace FinancialAI.UnitTests;

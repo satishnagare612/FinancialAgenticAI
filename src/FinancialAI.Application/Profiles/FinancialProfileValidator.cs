@@ -1,4 +1,4 @@
-﻿using FinancialAI.Application.Contracts;
+using FinancialAI.Application.Contracts;
 
 namespace FinancialAI.Application.Profiles;
 

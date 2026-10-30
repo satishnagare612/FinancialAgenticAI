@@ -1,4 +1,4 @@
-﻿namespace FinancialAI.Application.Contracts;
+namespace FinancialAI.Application.Contracts;
 
 /// <summary>Inbound payload for creating or replacing the current user's profile.</summary>
 public sealed record FinancialProfileDto(

@@ -1,4 +1,4 @@
-﻿namespace FinancialAI.Domain;
+namespace FinancialAI.Domain;
 
 public sealed record FinancialProfile(
     string Id,

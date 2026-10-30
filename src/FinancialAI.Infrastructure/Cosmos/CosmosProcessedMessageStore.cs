@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using FinancialAI.Application.Ports;
 using Microsoft.Azure.Cosmos;
 

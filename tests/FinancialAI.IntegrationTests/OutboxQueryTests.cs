@@ -1,4 +1,4 @@
-﻿using FinancialAI.Domain;
+using FinancialAI.Domain;
 using FinancialAI.Infrastructure.Cosmos;
 using FluentAssertions;
 using Microsoft.Azure.Cosmos;

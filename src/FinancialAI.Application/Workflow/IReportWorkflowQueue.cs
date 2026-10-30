@@ -1,4 +1,4 @@
-﻿namespace FinancialAI.Application.Workflow;
+namespace FinancialAI.Application.Workflow;
 
 /// <summary>
 /// In-process queue for reports awaiting workflow execution.
