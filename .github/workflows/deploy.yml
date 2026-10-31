@@ -59,11 +59,7 @@ jobs:
             --image ${{ secrets.ACR_NAME }}.azurecr.io/financialai-api:${{ github.sha }}
 
       - name: Deploy AI Container App
-        env:
-          LLM_PROVIDER: real
-          LLM_PRESET: groq
-          LLM_API_KEY: "[REDACTED_GROQ_KEY]"
-          
+        
         run: |
           az containerapp update \
             --name financialai2-ai \

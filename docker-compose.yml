@@ -20,9 +20,7 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
-      - LLM_PROVIDER=real
-      - LLM_PRESET=groq
-      - LLM_API_KEY="[REDACTED_GROQ_KEY]"
+      - LLM_PROVIDER=stub
       # To try a real provider without editing this file:
       #   $env:LLM_PROVIDER="real"; $env:LLM_PRESET="groq"; $env:LLM_API_KEY="..."
       #   docker compose up -d --force-recreate ai
