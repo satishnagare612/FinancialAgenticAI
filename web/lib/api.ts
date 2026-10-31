@@ -46,6 +46,10 @@ async function getAuthToken(): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: "anonymous" }),
     signal: AbortSignal.timeout(5_000),
+    // Never cache token fetches. Without this, Next.js 14 may cache the
+    // response in its Data Cache and return a stale token for hours,
+    // producing 401s on every server render long after key rotation.
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(`Auth failed: ${res.status} ${await res.text()}`);
@@ -70,6 +74,10 @@ async function authedFetch(
   const token = await getAuthToken();
   return fetch(`${BASE}${path}`, {
     ...init,
+    // API responses are per-token, per-user, and time-sensitive — the
+    // Next.js Data Cache must not serve them. Every call must go to the
+    // API. `init.cache` (if provided by a caller) overrides.
+    cache: init.cache ?? "no-store",
     headers: {
       ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${token}`,
