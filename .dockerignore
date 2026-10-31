@@ -45,3 +45,13 @@ docker-compose.yml
 # OS
 .DS_Store
 Thumbs.db
+
+# Session / debug artifacts
+combine-*.ps1
+New-Context.ps1
+CONTEXT.md
+SESSION-NOTES.md
+test-failure.log
+api-logs.json
+ai-logs.json
+api-test-results.json
