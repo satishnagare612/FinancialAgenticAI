@@ -1203,6 +1203,44 @@ files = [
 ]
 
 [[package]]
+name = "langchain"
+version = "1.4.7"
+description = "Building applications with LLMs through composability"
+optional = false
+python-versions = "<4.0.0,>=3.10.0"
+groups = ["main"]
+files = [
+    {file = "langchain-1.4.7-py3-none-any.whl", hash = "sha256:bc40d4a9a46f0c3d75e316c0e576931fe19bceef83912a71dc1e0df781eb8f82"},
+    {file = "langchain-1.4.7.tar.gz", hash = "sha256:818275348cd707f7fbbe92ece0a725c25823140a054cf29865f420e0200fa2af"},
+]
+
+[package.dependencies]
+langchain-core = ">=1.6.13,<2.0.0"
+langgraph = ">=1.2.12,<1.3.0"
+pydantic = ">=2.7.4,<3.0.0"
+
+[package.extras]
+anthropic = ["langchain-anthropic"]
+aws = ["langchain-aws"]
+azure-ai = ["langchain-azure-ai"]
+baseten = ["langchain-baseten (>=0.2.0)"]
+community = ["langchain-community"]
+deepseek = ["langchain-deepseek"]
+fireworks = ["langchain-fireworks"]
+google-genai = ["langchain-google-genai"]
+google-vertexai = ["langchain-google-vertexai"]
+groq = ["langchain-groq"]
+huggingface = ["langchain-huggingface"]
+mcp = ["fastmcp (>=4.0.11,<5.0.0)"]
+meta = ["langchain-meta"]
+mistralai = ["langchain-mistralai"]
+ollama = ["langchain-ollama"]
+openai = ["langchain-openai"]
+perplexity = ["langchain-perplexity"]
+together = ["langchain-together"]
+xai = ["langchain-xai"]
+
+[[package]]
 name = "langchain-core"
 version = "1.7.3"
 description = "Building applications with LLMs through composability"
@@ -2561,19 +2599,19 @@ files = [
 
 [[package]]
 name = "tenacity"
-version = "9.1.4"
+version = "9.2.1"
 description = "Retry code until it succeeds"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55"},
-    {file = "tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a"},
+    {file = "tenacity-9.2.1-py3-none-any.whl", hash = "sha256:9e56f17539296baab7beabb08b92f6ee3d7be92d8be72d763360677c2ad6580e"},
+    {file = "tenacity-9.2.1.tar.gz", hash = "sha256:a606b5c808d0cded4a359d5b9932d867ff2a6a6b64d37350260fd01bbdf83839"},
 ]
 
 [package.extras]
 doc = ["reno", "sphinx"]
-test = ["pytest", "tornado (>=4.5)", "typeguard"]
+test = ["pytest", "tornado (>=6.0)"]
 
 [[package]]
 name = "tiktoken"
@@ -3309,4 +3347,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0.0"
-content-hash = "70c9e3cdc099c1baeaec2533d7d2ef43e9cf016323e7658bc3744fe9eae0c00b"
+content-hash = "057a4b66bef066f1b3c5ce3c4666b82e88335f67130427e5c8c0938a6c15f1d4"
