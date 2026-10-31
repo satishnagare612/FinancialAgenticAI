@@ -1,35 +1,70 @@
 using FinancialAI.Application.Ports;
 using FinancialAI.Application.Workflow;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.Logging;
 using WorkflowType = Microsoft.Agents.AI.Workflows.Workflow;
 
 namespace FinancialAI.Infrastructure.Workflow;
 
 public sealed class MafReportWorkflowRunner : IReportWorkflowRunner
 {
-    private readonly WorkflowType _workflow;
+    /// <summary>
+    /// Hard ceiling on a single workflow run. Guarantees that a workflow
+    /// which MAF silently hangs on (e.g. an executor HTTP call that never
+    /// returns) cannot hold a worker slot indefinitely.
+    /// </summary>
+    private static readonly TimeSpan RunTimeout = TimeSpan.FromMinutes(10);
 
-    public MafReportWorkflowRunner(WorkflowType workflow) => _workflow = workflow;
+    private readonly WorkflowType _workflow;
+    private readonly ILogger<MafReportWorkflowRunner> _logger;
+
+    public MafReportWorkflowRunner(
+        WorkflowType workflow,
+        ILogger<MafReportWorkflowRunner> logger)
+    {
+        _workflow = workflow;
+        _logger = logger;
+    }
 
     public async Task RunAsync(WorkflowState state, CancellationToken ct)
     {
-        // Workflow has no RunAsync. Execution is a static concern in
-        // InProcessExecution. The generic parameter is the workflow's
-        // input type; WorkflowState is what every executor accepts/returns.
-        // Run implements IAsyncDisposable — always dispose it.
-        await using Run run = await InProcessExecution.RunAsync<WorkflowState>(
-            _workflow, state, cancellationToken: ct);
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        runCts.CancelAfter(RunTimeout);
 
-        // Optional: inspect events for observability. The workflow itself
-        // already persisted state through the executors' repository calls,
-        // so we do not need to read the final WorkflowState from the events.
-        foreach (WorkflowEvent evt in run.NewEvents)
+        _logger.LogInformation(
+            "Workflow starting. ReportId={ReportId} Timeout={Timeout}",
+            state.ReportId, RunTimeout);
+
+        try
         {
-            if (evt is ExecutorFailedEvent failed)
+            await using Run run = await InProcessExecution.RunAsync<WorkflowState>(
+                _workflow, state, cancellationToken: runCts.Token);
+
+            foreach (WorkflowEvent evt in run.NewEvents)
             {
-                throw new InvalidOperationException(
-                    $"Executor '{failed.ExecutorId}' failed: {failed.Data}");
+                if (evt is ExecutorFailedEvent failed)
+                {
+                    throw new InvalidOperationException(
+                        $"Executor '{failed.ExecutorId}' failed: {failed.Data}");
+                }
             }
+
+            _logger.LogInformation(
+                "Workflow completed. ReportId={ReportId} EventCount={Count}",
+                state.ReportId, run.NewEvents.Count());
+        }
+        catch (OperationCanceledException)
+            when (runCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            // runCts fired but the outer ct did not — this is a workflow-internal
+            // hang, not a shutdown. Surface it as a TimeoutException so
+            // ReportWorkflowWorker's catch block marks the report failed.
+            _logger.LogError(
+                "Workflow exceeded {Timeout} hard timeout. ReportId={ReportId}",
+                RunTimeout, state.ReportId);
+            throw new TimeoutException(
+                $"Workflow exceeded {RunTimeout.TotalMinutes}-minute hard timeout " +
+                $"for report {state.ReportId}.");
         }
     }
 }

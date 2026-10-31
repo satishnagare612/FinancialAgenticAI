@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using FinancialAI.Application.Contracts;
 using FinancialAI.Infrastructure.AiService;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FinancialAI.UnitTests;
@@ -20,7 +21,9 @@ public class AiServiceClientTests
     {
         var body = """{"detail":{"code":"ai_service_error","correlationId":"corr-from-python"}}""";
         var handler = new FakeHandler(HttpStatusCode.BadGateway, body);
-        var client = new AiServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://test") });
+        var client = new AiServiceClient(
+        new HttpClient(handler) { BaseAddress = new Uri("http://test") },
+            NullLogger<AiServiceClient>.Instance);
 
         var ex = await Assert.ThrowsAsync<AiServiceException>(
             () => client.AnalyzeAsync(SampleRequest(), default));
@@ -37,7 +40,9 @@ public class AiServiceClientTests
     {
         var body = """{"detail":"Graph terminated without a review decision"}""";
         var handler = new FakeHandler(HttpStatusCode.InternalServerError, body);
-        var client = new AiServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://test") });
+        var client = new AiServiceClient(
+        new HttpClient(handler) { BaseAddress = new Uri("http://test") },
+            NullLogger<AiServiceClient>.Instance);
 
         var ex = await Assert.ThrowsAsync<AiServiceException>(
             () => client.AnalyzeAsync(SampleRequest(), default));
@@ -51,7 +56,9 @@ public class AiServiceClientTests
     public async Task AnalyzeAsync_OnNonJsonErrorBody_StillThrowsTypedException()
     {
         var handler = new FakeHandler(HttpStatusCode.BadGateway, "<html>Bad Gateway</html>");
-        var client = new AiServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://test") });
+        var client = new AiServiceClient(
+        new HttpClient(handler) { BaseAddress = new Uri("http://test") },
+            NullLogger<AiServiceClient>.Instance);
 
         var ex = await Assert.ThrowsAsync<AiServiceException>(
             () => client.AnalyzeAsync(SampleRequest(), default));
