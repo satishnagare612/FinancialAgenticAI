@@ -4,6 +4,23 @@ import type {
   ReportState,
 } from "./types";
 
+// ---------- Raw download proxies ----------
+// The API returns relative download paths (/api/reports/{id}/json, /pdf).
+// Browsers resolve those against the current origin — which is the Vercel
+// app, not the Azure API. These helpers give the Next.js route handlers a
+// way to fetch the raw response (with auth) and stream it back.
+export async function fetchReportJsonRaw(id: string): Promise<Response> {
+  return authedFetch(`/api/reports/${id}/json`, {
+    signal: AbortSignal.timeout(30_000),
+  });
+}
+
+export async function fetchReportPdfRaw(id: string): Promise<Response> {
+  return authedFetch(`/api/reports/${id}/pdf`, {
+    signal: AbortSignal.timeout(60_000),
+  });
+}
+
 const BASE =
   typeof window === "undefined"
     ? (process.env.INTERNAL_API_BASE_URL ??
