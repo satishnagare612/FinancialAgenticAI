@@ -11,7 +11,10 @@ from app.models.responses import (
 from app.rag.retriever import Retriever
 
 _ANALYSIS_SYSTEM_PROMPT = "Explain projections cautiously. Cite only supplied sources."
-_REVIEW_SYSTEM_PROMPT = "Check numbers match deterministic projections and all claims are cited."
+_REVIEW_SYSTEM_PROMPT = (
+    "Check numbers match deterministic projections and all claims are cited."
+)
+_VALID_DECISIONS = {"approve", "revise", "human_review"}
 
 
 class StructuredLlm(Protocol):
@@ -31,7 +34,23 @@ class AgentState(TypedDict):
     revision_count: int
 
 
-def build_graph(llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2) -> Any:
+def _normalize_decision(raw: str) -> str:
+    """Coerce model-produced decision strings to the allowed set.
+    Handles common variations: 'approve.', 'Approve', 'accept',
+    'APPROVED', etc."""
+    d = (raw or "").strip().lower().rstrip(".")
+    if d in _VALID_DECISIONS:
+        return d
+    if d.startswith("approv") or d == "accept":
+        return "approve"
+    if d.startswith("revis"):
+        return "revise"
+    return "human_review"  # safe fallback
+
+
+def build_graph(
+    llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
+) -> Any:
     structured_analysis = llm.with_structured_output(AnalysisDraft)
     structured_review = llm.with_structured_output(ReviewResponse)
 
@@ -40,7 +59,9 @@ def build_graph(llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
         # corpus. report_id is a UUID with no semantic content; querying on it
         # always returns [] with HashingEmbedder because the token sets are
         # disjoint. Query on the domain terms the corpus is about instead.
-        query = "retirement projection equity returns inflation nominal adjusted balance"
+        query = (
+            "retirement projection equity returns inflation nominal adjusted balance"
+        )
         items = await retriever.retrieve(query=query, top_k=5)
         state["retrieved_context"] = items
         return state
@@ -90,6 +111,12 @@ def build_graph(llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
                 {"role": "user", "content": state["narrative"] or ""},
             ]
         )
+        # Defensive: if the model returned something slightly off, fix it here
+        # instead of letting pydantic reject at the schema boundary.
+        review = review.model_copy(
+            update={"decision": _normalize_decision(review.decision)}
+        )
+
         state["review"] = review
         if review.decision == "revise":
             state["revision_count"] += 1
@@ -110,5 +137,7 @@ def build_graph(llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
     graph.set_entry_point("retrieval")
     graph.add_edge("retrieval", "analysis")
     graph.add_edge("analysis", "review")
-    graph.add_conditional_edges("review", route_after_review, {"analysis": "analysis", "end": END})
+    graph.add_conditional_edges(
+        "review", route_after_review, {"analysis": "analysis", "end": END}
+    )
     return graph.compile()

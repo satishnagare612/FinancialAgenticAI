@@ -41,7 +41,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
         "model": "llama3.3",
-        "structured_method": "json_mode",
+        "structured_method": "function_calling",  # was "json_mode"
     },
 }
 
@@ -90,8 +90,6 @@ def resolve_llm_config() -> tuple[str, str, str]:
             f"(LLM_PRESET). Known presets: {sorted(PROVIDER_PRESETS)}"
         )
     if not model:
-        raise ValueError(
-            "No model: set LLM_MODEL or pick a known preset (LLM_PRESET)."
-        )
+        raise ValueError("No model: set LLM_MODEL or pick a known preset (LLM_PRESET).")
 
     return base_url, model, method

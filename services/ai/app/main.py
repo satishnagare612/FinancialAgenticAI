@@ -25,6 +25,7 @@ structlog.configure(
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.processors.format_exc_info,  # <-- ADD THIS
         structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(0),
@@ -100,7 +101,7 @@ async def readyz() -> dict[str, str]:
     return {"status": "ready"}
 
 
-@app.post("/v1/analyze", response_model=AnalysisResponse)
+@app.post("/v1/analyze")
 async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
     logger.info(
         "analyze_started",

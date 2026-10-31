@@ -35,9 +35,7 @@ class AnalysisResponse(CamelModel):
 
 
 class ReviewResponse(CamelModel):
-    """LLM structured output from the review node."""
-
     approved: bool
     issues: list[str] = Field(default_factory=list)
     final_confidence: float = Field(ge=0.0, le=1.0)
-    decision: Literal["approve", "revise", "human_review"]
+    decision: str  # was: Literal["approve", "revise", "human_review"]
