@@ -84,3 +84,6 @@ test-failure.log
 api-logs.json
 ai-logs.json
 api-test-results.json
+
+.vercel
+.env*
