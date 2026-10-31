@@ -76,46 +76,38 @@ public static class DependencyInjection
                 configuration["AiService:BaseUrl"]
                 ?? configuration["AiService__BaseUrl"]
                 ?? throw new InvalidOperationException("AiService:BaseUrl is required."));
+            // Global HttpClient.Timeout is disabled; per-attempt timeouts and
+            // total pipeline budget are enforced by the resilience pipeline
+            // below plus AiServiceClient's own CancellationTokenSource.
             client.Timeout = Timeout.InfiniteTimeSpan;
         })
         .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
         {
-            // Set an appropriate limit based on expected concurrency
             MaxConnectionsPerServer = 20,
-            // Rotate connections periodically to avoid stale connections
             PooledConnectionLifetime = TimeSpan.FromMinutes(10)
         })
         .AddResilienceHandler("AiServicePipeline", builder =>
         {
-            // Add a retry strategy with exponential backoff
+            // Order matters. Strategies are applied OUTER-to-INNER in the
+            // order added:
+            //   Timeout (outer) -> Retry (inner) -> handler
+            // so the timeout caps the TOTAL budget across all retry attempts,
+            // rather than firing per attempt. Result:
+            //   Max wall-clock time = 3 minutes (not 3×5 = 15 min).
+            builder.AddTimeout(TimeSpan.FromMinutes(3));
+
             builder.AddRetry(new HttpRetryStrategyOptions
             {
-                MaxRetryAttempts = 3,
-                Delay = TimeSpan.FromSeconds(5),
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true,
-                // Handle timeouts and transient HTTP errors
+                MaxRetryAttempts = 1,   // 1 retry = 2 attempts total
+                Delay = TimeSpan.FromSeconds(3),
+                BackoffType = DelayBackoffType.Constant,
+                UseJitter = false,
                 ShouldHandle = args => ValueTask.FromResult(
-                     args.Outcome.Result is null
-                     || args.Outcome.Exception is TimeoutException
-                     || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
+                    args.Outcome.Result is null
+                    || args.Outcome.Exception is TimeoutException
+                    || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
             });
-            builder.AddTimeout(TimeSpan.FromMinutes(5));
         });
-        // .AddResilienceHandler("ai-pipeline", (builder, context) =>
-        // {
-        //     builder.AddRetry(new Polly.Retry.RetryStrategyOptions<HttpResponseMessage>
-        //     {
-        //         MaxRetryAttempts = 3,
-        //         Delay = TimeSpan.FromSeconds(1),
-        //         BackoffType = Polly.DelayBackoffType.Exponential,
-        //         UseJitter = true,
-        //         ShouldHandle = args => ValueTask.FromResult(
-        //             args.Outcome.Result is null
-        //             || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
-        //     });
-        //     builder.AddTimeout(TimeSpan.FromSeconds(90));
-        // });
 
         var serviceBusEnabled = configuration.GetValue<bool>("ServiceBus:Enabled", defaultValue: false);
 
