@@ -23,12 +23,24 @@ async function handle<T>(res: Response): Promise<T> {
 // Dev token caching. In production this is replaced by a real session.
 // /api/auth/dev-token returns 404 outside Development, so this code path
 // naturally fails there without a build flag.
-let cachedToken: { value: string; expiresAt: number } | null = null;
+// Cached token is BROWSER-ONLY. On the server (Vercel Server Components /
+// Route Handlers), module state persists across requests on a warm
+// instance, so a cached token can outlive a signing-key rotation and
+// produce 401s until the cache ages out. The dev-token endpoint is a
+// stub — fetching per-request on the server is cheap and correct.
+let browserCachedToken: { value: string; expiresAt: number } | null = null;
 
 async function getAuthToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.value;
+  const isBrowser = typeof window !== "undefined";
+
+  if (
+    isBrowser &&
+    browserCachedToken &&
+    Date.now() < browserCachedToken.expiresAt - 60_000
+  ) {
+    return browserCachedToken.value;
   }
+
   const res = await fetch(`${BASE}/api/auth/dev-token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -39,9 +51,15 @@ async function getAuthToken(): Promise<string> {
     throw new Error(`Auth failed: ${res.status} ${await res.text()}`);
   }
   const data = (await res.json()) as { token: string; userId: string };
-  // Dev token lifetime is 1 hour. Cache for 55 minutes so the last five
-  // minutes are always fresh.
-  cachedToken = { value: data.token, expiresAt: Date.now() + 55 * 60 * 1000 };
+
+  if (isBrowser) {
+    // 55-minute cache so the last 5 minutes are always fresh.
+    browserCachedToken = {
+      value: data.token,
+      expiresAt: Date.now() + 55 * 60 * 1000,
+    };
+  }
+
   return data.token;
 }
 
