@@ -73,3 +73,14 @@ sb-logs/
 
 # Bicep compiled output
 infra/bicep/main.json
+
+# Session context artifacts — regenerate with scripts/New-Context.ps1
+combined-*.txt
+combined-*.manifest.txt
+CONTEXT.md
+SESSION-NOTES.md
+Session-Management.md
+test-failure.log
+api-logs.json
+ai-logs.json
+api-test-results.json
