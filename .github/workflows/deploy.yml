@@ -59,7 +59,7 @@ jobs:
             --image ${{ secrets.ACR_NAME }}.azurecr.io/financialai-api:${{ github.sha }}
 
       - name: Deploy AI Container App
-        
+
         run: |
           az containerapp update \
             --name financialai2-ai \
@@ -90,4 +90,3 @@ jobs:
       - name: Logout
         if: always()
         run: az logout
-
