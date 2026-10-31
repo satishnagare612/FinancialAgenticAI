@@ -53,9 +53,39 @@ builder.Services
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                System.Text.Encoding.UTF8.GetBytes(signingKey)),
+        System.Text.Encoding.UTF8.GetBytes(signingKey)),
             ClockSkew = TimeSpan.FromMinutes(1),
             NameClaimType = System.Security.Claims.ClaimTypes.Name,
+        };
+
+        // A 401 with no body is opaque to the UI (lib/api.ts surfaces the
+        // raw status). These events log the validation failure and return
+        // an RFC 7807 body so a rejected token says *why* it was rejected.
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                ctx.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>()
+                    .LogWarning(ctx.Exception,
+                        "JWT auth failed. Path={Path} FailureType={FailureType}",
+                        ctx.Request.Path, ctx.Exception?.GetType().Name);
+                return Task.CompletedTask;
+            },
+            OnChallenge = async ctx =>
+            {
+                ctx.HandleResponse();
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                ctx.Response.ContentType = "application/problem+json";
+                await ctx.Response.WriteAsJsonAsync(new
+                {
+                    type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    title = "Unauthorized",
+                    status = 401,
+                    detail = ctx.AuthenticateFailure?.Message ?? "Token rejected.",
+                    path = ctx.Request.Path.Value,
+                });
+            },
         };
     });
 
@@ -70,10 +100,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .WithExposedHeaders("X-Correlation-Id");
+        if (allowedOrigins.Length == 1 && allowedOrigins[0] == "*")
+        {
+            // Explicit "*" in config means "allow all". AllowAnyOrigin()
+            // is required — WithOrigins("*") would only match a literal
+            // Origin: * header that browsers never send.
+            // Safe with bearer tokens: Authorization is not a CORS credential.
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithExposedHeaders("X-Correlation-Id");
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithExposedHeaders("X-Correlation-Id");
+        }
     });
 });
 

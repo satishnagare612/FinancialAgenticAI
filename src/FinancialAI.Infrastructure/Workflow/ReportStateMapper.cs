@@ -5,32 +5,21 @@ namespace FinancialAI.Infrastructure.Workflow;
 
 public static class ReportStateMapper
 {
-    public static Report ToPendingReport(
-    Guid reportId, string userId, string correlationId, ProjectionInput input)
-    {
-        return new Report(
-            Id: reportId.ToString("N"),
-            UserId: userId,
-            Status: ReportStatus.Pending.ToWireString(),
-            Assumptions:
-            [
-                $"Initial balance: {input.InitialBalance}",
-                $"Periodic contribution: {input.PeriodicContribution}",
-                $"Annual return: {input.AnnualReturnRate:P2}",
-                $"Annual inflation: {input.AnnualInflationRate:P2}",
-                $"Years: {input.Years}",
-            ],
-            BaseCaseProjections: Array.Empty<decimal>(),
-            ConservativeProjections: Array.Empty<decimal>(),
-            Narrative: null,
-            KeyRisks: Array.Empty<string>(),
-            CitedSources: Array.Empty<string>(),
-            ConfidenceScore: 0.0,
-            GeneratedAtUtc: DateTimeOffset.UtcNow)
+    /// <summary>
+    /// Assumption strings surfaced on the report detail response and PDF.
+    /// Shared between report creation (<c>ReportEndpoints.MapPost</c>) and
+    /// projection calculation (<c>CalculateProjectionsExecutor</c>) so the
+    /// two paths cannot drift.
+    /// </summary>
+    public static IReadOnlyList<string> BuildAssumptions(ProjectionInput input)
+        => new[]
         {
-            CorrelationId = correlationId,
+            $"Initial balance: {input.InitialBalance}",
+            $"Periodic contribution: {input.PeriodicContribution}",
+            $"Annual return: {input.AnnualReturnRate:P2}",
+            $"Annual inflation: {input.AnnualInflationRate:P2}",
+            $"Years: {input.Years}",
         };
-    }
 
     public static IReadOnlyList<decimal> ToNominalSeries(
         IReadOnlyList<ProjectionPoint> points)

@@ -38,12 +38,9 @@ public sealed partial class CalculateProjectionsExecutor
 
         var basePoints = _calculator.Calculate(input.ProjectionInput);
 
-        // Conservative scenario: same model with a stricter return and
-        // a slightly higher inflation assumption. Adjustments come from
+        // Conservative scenario: same model with a stricter return and a
+        // slightly higher inflation assumption. Adjustments come from
         // configuration, never hardcoded.
-        // Conservative-scenario adjustments come from ReportWorkflowOptions
-        // so a financial reviewer can change the risk assumption without
-        // a code change.
         var conservativeInput = input.ProjectionInput with
         {
             AnnualReturnRate = Math.Max(
@@ -56,10 +53,21 @@ public sealed partial class CalculateProjectionsExecutor
         };
         var conservativePoints = _calculator.Calculate(conservativeInput);
 
-        var report = ReportStateMapper.ToPendingReport(
-            input.ReportId, input.UserId, input.CorrelationId, input.ProjectionInput) with
+        // Patch the report the POST endpoint created. GeneratedAtUtc, Id,
+        // UserId and CorrelationId are copied from the existing document
+        // and never rewritten here — only the fields this step owns change.
+        // Recreating the report via ToPendingReport used to reset
+        // GeneratedAtUtc on every workflow run, which made the API's
+        // "created" timestamp drift away from the original POST.
+        var existing = await _reports.GetAsync(
+            input.ReportId.ToString("N"), cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Report {input.ReportId} disappeared before projection calculation.");
+
+        var report = existing with
         {
             Status = ReportStatus.Running.ToWireString(),
+            Assumptions = ReportStateMapper.BuildAssumptions(input.ProjectionInput),
             BaseCaseProjections = ReportStateMapper.ToNominalSeries(basePoints),
             ConservativeProjections = ReportStateMapper.ToNominalSeries(conservativePoints),
         };
