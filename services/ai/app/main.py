@@ -34,8 +34,6 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
@@ -47,11 +45,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "several percentage points. Retirement projections should disclose "
         "both nominal and inflation-adjusted balances."
     )
-    retriever.add_documents(chunk_text("src-001", seed, uri="https://example.org/src-001"))
+    retriever.add_documents(
+        chunk_text("src-001", seed, uri="https://example.org/src-001")
+    )
 
     if settings.llm_provider == "real":
         base_url, model, structured_method = resolve_llm_config()
         llm = build_real_llm(
+            preset_name=settings.llm_preset,
             base_url=base_url,
             api_key=settings.llm_api_key,
             model=model,
@@ -149,7 +150,9 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         )
         raise HTTPException(
             status_code=500,
-            detail=(f"Graph terminated without a review decision (report_id={payload.report_id})."),
+            detail=(
+                f"Graph terminated without a review decision (report_id={payload.report_id})."
+            ),
         )
 
     logger.info(
@@ -167,8 +170,3 @@ async def analyze(payload: AnalyzeRequest) -> AnalysisResponse:
         cited_sources=result["cited_sources"],
         decision=review.decision,
     )
-
-
-
-
-

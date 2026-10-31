@@ -19,11 +19,7 @@ class _StructuredAdapter:
     """Wraps a ChatOpenAI instance so with_structured_output honours the
     provider's declared structured-output method."""
 
-    def __init__(
-        self,
-        llm: Any,
-        structured_method: str,
-    ) -> None:
+    def __init__(self, llm: Any, structured_method: str) -> None:
         self._llm = llm
         self._method = structured_method
 
@@ -32,6 +28,7 @@ class _StructuredAdapter:
 
 
 def build_real_llm(
+    preset_name: str,
     base_url: str,
     api_key: str,
     model: str,
@@ -42,9 +39,32 @@ def build_real_llm(
 ) -> StructuredLlm:
     if not api_key:
         raise ValueError(
-            "LLM_API_KEY is required when LLM_PROVIDER=real. "
+            f"LLM_API_KEY is required for provider '{preset_name}'. "
             "Set it via environment variable or .env file."
         )
+
+    if preset_name == "gemini":
+        # Use the native Gemini client for best structured-output support.
+        # This requires: pip install langchain-google-genai
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+        except ImportError as e:
+            raise ImportError(
+                "The 'langchain-google-genai' package is required for the "
+                "Gemini provider. Install it with: pip install langchain-google-genai"
+            ) from e
+
+        llm = ChatGoogleGenerativeAI(
+            model=model,
+            google_api_key=SecretStr(api_key),
+            temperature=temperature,
+            timeout=timeout_seconds,
+            max_retries=max_retries,
+        )
+        # The native client supports method="json_schema" for strict output.
+        return _StructuredAdapter(llm, structured_method)
+
+    # Grok, OpenRouter, and any other OpenAI-compatible provider
     if structured_method not in ("json_schema", "function_calling", "json_mode"):
         raise ValueError(
             f"Unsupported structured_method '{structured_method}'. "
@@ -63,4 +83,3 @@ def build_real_llm(
         default_headers={"HTTP-Referer": "https://financialai.local"},
     )
     return _StructuredAdapter(llm, structured_method)
-

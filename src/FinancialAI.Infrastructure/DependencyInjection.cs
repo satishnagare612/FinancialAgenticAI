@@ -102,10 +102,12 @@ public static class DependencyInjection
                 Delay = TimeSpan.FromSeconds(3),
                 BackoffType = DelayBackoffType.Constant,
                 UseJitter = false,
+
                 ShouldHandle = args => ValueTask.FromResult(
                     args.Outcome.Result is null
                     || args.Outcome.Exception is TimeoutException
-                    || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500),
+                    || (int)(args.Outcome.Result?.StatusCode ?? 0) >= 500
+                    || (int)(args.Outcome.Result?.StatusCode ?? 0) == 429) // <-- ADD THIS )
             });
         });
 
