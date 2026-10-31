@@ -43,26 +43,26 @@ def build_real_llm(
             "Set it via environment variable or .env file."
         )
 
-    if preset_name == "gemini":
-        # Use the native Gemini client for best structured-output support.
-        # This requires: pip install langchain-google-genai
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-        except ImportError as e:
-            raise ImportError(
-                "The 'langchain-google-genai' package is required for the "
-                "Gemini provider. Install it with: pip install langchain-google-genai"
-            ) from e
+    # if preset_name == "gemini":
+    #     # Use the native Gemini client for best structured-output support.
+    #     # This requires: pip install langchain-google-genai
+    #     try:
+    #         from langchain_google_genai import ChatGoogleGenerativeAI
+    #     except ImportError as e:
+    #         raise ImportError(
+    #             "The 'langchain-google-genai' package is required for the "
+    #             "Gemini provider. Install it with: pip install langchain-google-genai"
+    #         ) from e
 
-        llm = ChatGoogleGenerativeAI(
-            model=model,
-            google_api_key=SecretStr(api_key),
-            temperature=temperature,
-            timeout=timeout_seconds,
-            max_retries=max_retries,
-        )
-        # The native client supports method="json_schema" for strict output.
-        return _StructuredAdapter(llm, structured_method)
+    #     llm = ChatGoogleGenerativeAI(
+    #         model=model,
+    #         google_api_key=SecretStr(api_key),
+    #         temperature=temperature,
+    #         timeout=timeout_seconds,
+    #         max_retries=max_retries,
+    #     )
+    #     # The native client supports method="json_schema" for strict output.
+    #     return _StructuredAdapter(llm, structured_method)
 
     # Grok, OpenRouter, and any other OpenAI-compatible provider
     if structured_method not in ("json_schema", "function_calling", "json_mode"):
