@@ -118,10 +118,10 @@ def build_graph(
 
         if draft is None:
             draft = AnalysisDraft(
-                narrative="Automated narrative unavailable — the LLM response could not be parsed as structured output.",
+                narrative="Auto narrative absent LLMResponse can't be parsed as structured output.",
                 key_risks=[
-                    "LLM structured output failed; this report was generated with degraded narrative.",
-                    "Financial projections in this report are deterministic and unaffected by the LLM failure.",
+                    "LLM structured output failed; Report was generated with degraded narrative.",
+                    "Financial projections here are deterministic and unaffected by LLM failure.",
                 ],
                 confidence=0.0,
                 cited_sources=["src-001"],
