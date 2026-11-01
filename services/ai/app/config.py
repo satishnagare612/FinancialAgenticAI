@@ -41,7 +41,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
         "model": "llama3.3",
-        "structured_method": "function_calling",  # was "json_mode"
+        "structured_method": "json_mode",  # was function_calling
     },
 }
 

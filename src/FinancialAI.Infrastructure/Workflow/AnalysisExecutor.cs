@@ -3,6 +3,7 @@ using FinancialAI.Application.Ports;
 using FinancialAI.Application.Workflow;
 using FinancialAI.Domain;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialAI.Infrastructure.Workflow;
 
@@ -11,12 +12,14 @@ public sealed partial class AnalysisExecutor
 {
     private readonly IAiServiceClient _aiClient;
     private readonly IReportRepository _reports;
+    private readonly ILogger<AnalysisExecutor> _logger;
 
-    public AnalysisExecutor(IAiServiceClient aiClient, IReportRepository reports)
+    public AnalysisExecutor(IAiServiceClient aiClient, IReportRepository reports, ILogger<AnalysisExecutor> logger)
         : base("Analysis")
     {
         _aiClient = aiClient;
         _reports = reports;
+        _logger = logger;
     }
 
     public override async ValueTask<WorkflowState> HandleAsync(
@@ -49,25 +52,33 @@ public sealed partial class AnalysisExecutor
 
         var response = await _aiClient.AnalyzeAsync(request, cancellationToken);
 
-        // Persist the narrative and citations as soon as they arrive so a
-        // downstream failure does not lose the AI work.
-        var existing = await _reports.GetAsync(input.ReportId.ToString("N"), cancellationToken);
-        if (existing is not null)
+        // The report MUST exist here — CalculateProjectionsExecutor read and
+        // wrote it seconds ago. If GetAsync returns null, something is
+        // wrong with the Cosmos read path (wrong ID, session consistency,
+        // partition key). Silently skipping the save leaves the report with
+        // a null narrative, which is worse than a loud failure — the user
+        // sees status=needs_review with no content to review.
+        var existing = await _reports.GetAsync(
+            input.ReportId.ToString("N"), cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Report {input.ReportId} disappeared between CalculateProjections " +
+                "and Analysis. Narrative cannot be saved.");
+
+        var updated = existing with
         {
-            var updated = existing with
-            {
-                Narrative = response.Narrative,
-                KeyRisks = response.KeyRisks,
-                CitedSources = response.CitedSources,
-                ConfidenceScore = response.Confidence,
-                // Status is deliberately not updated here: analysis happens
-                // within the "running" state. The status transitions to a
-                // terminal value in PersistAndRender (completed) or HumanReview
-                // (needs_review). "analyzed" was an enum-less intermediate that
-                // broke the frontend's polling loop.
-            };
-            await _reports.SaveAsync(updated, cancellationToken);
-        }
+            Narrative = response.Narrative,
+            KeyRisks = response.KeyRisks,
+            CitedSources = response.CitedSources,
+            ConfidenceScore = response.Confidence,
+        };
+        _logger.LogInformation(
+            "Analysis saving narrative. ReportId={ReportId} NarrativeLength={Length}",
+            input.ReportId, response.Narrative?.Length ?? 0);
+
+        await _reports.SaveAsync(updated, cancellationToken);
+
+        _logger.LogInformation(
+            "Analysis save complete. ReportId={ReportId}", input.ReportId);
 
         return input with
         {

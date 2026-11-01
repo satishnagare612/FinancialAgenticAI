@@ -43,27 +43,6 @@ def build_real_llm(
             "Set it via environment variable or .env file."
         )
 
-    # if preset_name == "gemini":
-    #     # Use the native Gemini client for best structured-output support.
-    #     # This requires: pip install langchain-google-genai
-    #     try:
-    #         from langchain_google_genai import ChatGoogleGenerativeAI
-    #     except ImportError as e:
-    #         raise ImportError(
-    #             "The 'langchain-google-genai' package is required for the "
-    #             "Gemini provider. Install it with: pip install langchain-google-genai"
-    #         ) from e
-
-    #     llm = ChatGoogleGenerativeAI(
-    #         model=model,
-    #         google_api_key=SecretStr(api_key),
-    #         temperature=temperature,
-    #         timeout=timeout_seconds,
-    #         max_retries=max_retries,
-    #     )
-    #     # The native client supports method="json_schema" for strict output.
-    #     return _StructuredAdapter(llm, structured_method)
-
     # Grok, OpenRouter, and any other OpenAI-compatible provider
     if structured_method not in ("json_schema", "function_calling", "json_mode"):
         raise ValueError(
@@ -73,6 +52,16 @@ def build_real_llm(
 
     from langchain_openai import ChatOpenAI
 
+    # For json_mode providers (Ollama, others that ignore LangChain's
+    # prompt-only JSON instruction), explicitly force response_format on
+    # the wire so the model is constrained to emit JSON. Without this,
+    # ChatOpenAI.with_structured_output(method="json_mode") may only
+    # prepend a prompt hint — which models like Gemma 4 on Ollama Cloud
+    # ignore, producing prose that fails JSON parsing.
+    extra_kwargs = {}
+    if structured_method == "json_mode":
+        extra_kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+
     llm = ChatOpenAI(
         model=model,
         api_key=SecretStr(api_key),
@@ -81,5 +70,6 @@ def build_real_llm(
         timeout=timeout_seconds,
         max_retries=max_retries,
         default_headers={"HTTP-Referer": "https://financialai.local"},
+        **extra_kwargs,
     )
     return _StructuredAdapter(llm, structured_method)

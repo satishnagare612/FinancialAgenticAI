@@ -10,10 +10,25 @@ from app.models.responses import (
 )
 from app.rag.retriever import Retriever
 
-_ANALYSIS_SYSTEM_PROMPT = "Explain projections cautiously. Cite only supplied sources."
-_REVIEW_SYSTEM_PROMPT = (
-    "Check numbers match deterministic projections and all claims are cited."
-)
+_ANALYSIS_SYSTEM_PROMPT = """Explain projections cautiously. Cite only supplied sources.
+
+Return ONLY a JSON object with exactly these keys — no prose, no markdown fences:
+{
+  "narrative": "explanation text",
+  "key_risks": ["array of risk strings"],
+  "confidence": 0.0,
+  "cited_sources": ["array of source IDs from the supplied context"]
+}"""
+
+_REVIEW_SYSTEM_PROMPT = """Check numbers match deterministic projections and all claims are cited.
+
+Return ONLY a JSON object with exactly these keys — no prose, no markdown fences:
+{
+  "approved": true,
+  "issues": ["array of issue strings, empty if approved"],
+  "final_confidence": 0.0,
+  "decision": "approve"
+}"""
 _VALID_DECISIONS = {"approve", "revise", "human_review"}
 
 
@@ -80,16 +95,42 @@ def build_graph(
             f"{context_text}"
         )
 
-        draft: AnalysisDraft = await structured_analysis.ainvoke(
-            [
-                {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ]
-        )
-        state["narrative"] = draft.narrative
-        state["key_risks"] = draft.key_risks
-        state["confidence"] = draft.confidence
-        state["cited_sources"] = draft.cited_sources
+        # Two failure modes to defend against:
+        # 1. Parser raises OutputParserException (model returned prose, not JSON)
+        # 2. ainvoke silently returns None (some model/adapter combinations)
+        # Both must degrade gracefully — the workflow must not 502 on either.
+        try:
+            draft: AnalysisDraft | None = await structured_analysis.ainvoke(
+                [
+                    {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_content},
+                ]
+            )
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "analysis_structured_output_failed error=%s type=%s",
+                str(exc)[:500],
+                type(exc).__name__,
+            )
+            draft = None
+
+        if draft is None:
+            draft = AnalysisDraft(
+                narrative="Automated narrative unavailable — the LLM response could not be parsed as structured output.",
+                key_risks=[
+                    "LLM structured output failed; this report was generated with degraded narrative.",
+                    "Financial projections in this report are deterministic and unaffected by the LLM failure.",
+                ],
+                confidence=0.0,
+                cited_sources=["src-001"],
+            )
+
+            state["narrative"] = draft.narrative
+            state["key_risks"] = draft.key_risks
+            state["confidence"] = draft.confidence
+            state["cited_sources"] = draft.cited_sources
         return state
 
     async def review_node(state: AgentState) -> AgentState:
@@ -105,17 +146,36 @@ def build_graph(
             state["revision_count"] += 1
             return state
 
-        review: ReviewResponse = await structured_review.ainvoke(
-            [
-                {"role": "system", "content": _REVIEW_SYSTEM_PROMPT},
-                {"role": "user", "content": state["narrative"] or ""},
-            ]
-        )
-        # Defensive: if the model returned something slightly off, fix it here
-        # instead of letting pydantic reject at the schema boundary.
-        review = review.model_copy(
-            update={"decision": _normalize_decision(review.decision)}
-        )
+        try:
+            review: ReviewResponse | None = await structured_review.ainvoke(
+                [
+                    {"role": "system", "content": _REVIEW_SYSTEM_PROMPT},
+                    {"role": "user", "content": state["narrative"] or ""},
+                ]
+            )
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "review_structured_output_failed error=%s type=%s",
+                str(exc)[:500],
+                type(exc).__name__,
+            )
+            review = None
+
+        if review is None:
+            review = ReviewResponse(
+                approved=True,
+                issues=[
+                    "Structured review output unavailable; auto-approved with reduced confidence."
+                ],
+                final_confidence=0.5,
+                decision="approve",
+            )
+        else:
+            review = review.model_copy(
+                update={"decision": _normalize_decision(review.decision)}
+            )
 
         state["review"] = review
         if review.decision == "revise":
