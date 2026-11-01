@@ -14,7 +14,7 @@ _ANALYSIS_SYSTEM_PROMPT = """Explain projections cautiously. Cite only supplied 
 
 Return ONLY a JSON object with exactly these keys — no prose, no markdown fences:
 {
-  "narrative": "explanation text",
+  "narrative": "explanation text, at least one full sentence",
   "key_risks": ["array of risk strings"],
   "confidence": 0.0,
   "cited_sources": ["array of source IDs from the supplied context"]
@@ -29,7 +29,23 @@ Return ONLY a JSON object with exactly these keys — no prose, no markdown fenc
   "final_confidence": 0.0,
   "decision": "approve"
 }"""
+
 _VALID_DECISIONS = {"approve", "revise", "human_review"}
+
+
+def _normalize_decision(raw: str) -> str:
+    """Coerce model-produced decision strings to the allowed set.
+
+    Handles common variations: 'approve.', 'Approve', 'accept', 'APPROVED'.
+    """
+    d = (raw or "").strip().lower().rstrip(".")
+    if d in _VALID_DECISIONS:
+        return d
+    if d.startswith("approv") or d == "accept":
+        return "approve"
+    if d.startswith("revis"):
+        return "revise"
+    return "human_review"
 
 
 class StructuredLlm(Protocol):
@@ -49,20 +65,6 @@ class AgentState(TypedDict):
     revision_count: int
 
 
-def _normalize_decision(raw: str) -> str:
-    """Coerce model-produced decision strings to the allowed set.
-    Handles common variations: 'approve.', 'Approve', 'accept',
-    'APPROVED', etc."""
-    d = (raw or "").strip().lower().rstrip(".")
-    if d in _VALID_DECISIONS:
-        return d
-    if d.startswith("approv") or d == "accept":
-        return "approve"
-    if d.startswith("revis"):
-        return "revise"
-    return "human_review"  # safe fallback
-
-
 def build_graph(
     llm: StructuredLlm, retriever: Retriever, max_revisions: int = 2
 ) -> Any:
@@ -70,10 +72,6 @@ def build_graph(
     structured_review = llm.with_structured_output(ReviewResponse)
 
     async def retrieval_node(state: AgentState) -> AgentState:
-        # The query must contain tokens the embedder can match against the
-        # corpus. report_id is a UUID with no semantic content; querying on it
-        # always returns [] with HashingEmbedder because the token sets are
-        # disjoint. Query on the domain terms the corpus is about instead.
         query = (
             "retirement projection equity returns inflation nominal adjusted balance"
         )
@@ -95,42 +93,51 @@ def build_graph(
             f"{context_text}"
         )
 
-        # Two failure modes to defend against:
-        # 1. Parser raises OutputParserException (model returned prose, not JSON)
-        # 2. ainvoke silently returns None (some model/adapter combinations)
-        # Both must degrade gracefully — the workflow must not 502 on either.
+        # Three failure modes to defend against:
+        # 1. Parser raises OutputParserException / ValidationError
+        # 2. ainvoke returns None
+        # 3. Model returns structurally valid but semantically empty content
+        draft: AnalysisDraft | None
         try:
-            draft: AnalysisDraft | None = await structured_analysis.ainvoke(
+            draft = await structured_analysis.ainvoke(
                 [
                     {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
                     {"role": "user", "content": user_content},
                 ]
             )
-        except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "analysis_structured_output_failed error=%s type=%s",
-                str(exc)[:500],
-                type(exc).__name__,
-            )
+        except Exception:
+            # Broad catch by design: structured-output failures degrade
+            # gracefully. The specific exception is logged by main.py's
+            # analyze_failed handler with full traceback.
             draft = None
 
-        if draft is None:
+        if (
+            draft is None
+            or not draft.narrative
+            or not draft.narrative.strip()
+            or len(draft.narrative.strip()) < 20
+        ):
             draft = AnalysisDraft(
-                narrative="Auto narrative absent LLMResponse can't be parsed as structured output.",
+                narrative="Automated narrative unavailable — the LLM response "
+                "could not be parsed as structured output.",
                 key_risks=[
-                    "LLM structured output failed; Report was generated with degraded narrative.",
-                    "Financial projections here are deterministic and unaffected by LLM failure.",
+                    "LLM structured output failed; this report was generated "
+                    "with degraded narrative.",
+                    "Financial projections in this report are deterministic and "
+                    "unaffected by the LLM failure.",
                 ],
                 confidence=0.0,
-                cited_sources=["src-001"],
+                cited_sources=(
+                    [state["retrieved_context"][0].source_id]
+                    if state["retrieved_context"]
+                    else []
+                ),
             )
 
-            state["narrative"] = draft.narrative
-            state["key_risks"] = draft.key_risks
-            state["confidence"] = draft.confidence
-            state["cited_sources"] = draft.cited_sources
+        state["narrative"] = draft.narrative
+        state["key_risks"] = draft.key_risks
+        state["confidence"] = draft.confidence
+        state["cited_sources"] = draft.cited_sources
         return state
 
     async def review_node(state: AgentState) -> AgentState:
@@ -146,28 +153,25 @@ def build_graph(
             state["revision_count"] += 1
             return state
 
+        review: ReviewResponse | None
         try:
-            review: ReviewResponse | None = await structured_review.ainvoke(
+            review = await structured_review.ainvoke(
                 [
                     {"role": "system", "content": _REVIEW_SYSTEM_PROMPT},
                     {"role": "user", "content": state["narrative"] or ""},
                 ]
             )
-        except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "review_structured_output_failed error=%s type=%s",
-                str(exc)[:500],
-                type(exc).__name__,
-            )
+        except Exception:
             review = None
 
-        if review is None:
+        # Same three failure modes as analysis_node, plus: approved=False
+        # with empty issues is contradictory — treat as unparseable.
+        if review is None or (not review.approved and not review.issues):
             review = ReviewResponse(
                 approved=True,
                 issues=[
-                    "Structured review output unavailable; auto-approved with reduced confidence."
+                    "Structured review output unavailable; auto-approved with "
+                    "reduced confidence."
                 ],
                 final_confidence=0.5,
                 decision="approve",

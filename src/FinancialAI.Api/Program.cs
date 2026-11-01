@@ -76,15 +76,22 @@ builder.Services
             {
                 ctx.HandleResponse();
                 ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                ctx.Response.ContentType = "application/problem+json";
-                await ctx.Response.WriteAsJsonAsync(new
+                // WriteAsync with an explicit ContentType is more reliable
+                // than WriteAsJsonAsync(contentType: ...), which several
+                // .NET versions silently override to application/json when
+                // response.ContentType is set previously or in some
+                // overload-resolution paths.
+                ctx.Response.ContentType = "application/problem+json; charset=utf-8";
+                var problem = new
                 {
                     type = "https://tools.ietf.org/html/rfc7235#section-3.1",
                     title = "Unauthorized",
                     status = 401,
                     detail = ctx.AuthenticateFailure?.Message ?? "Token rejected.",
                     path = ctx.Request.Path.Value,
-                });
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(problem);
+                await ctx.Response.WriteAsync(json);
             },
         };
     });

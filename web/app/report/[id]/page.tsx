@@ -140,15 +140,19 @@ export default async function ReportDetailPage({ params }: PageProps) {
       )}
 
       {state.status === "needs_review" && (
-        <Card>
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
           <CardHeader>
-            <CardTitle>Awaiting human review</CardTitle>
+            <CardTitle className="text-amber-900 dark:text-amber-100">
+              Awaiting human review
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              This report was flagged for review because confidence fell below
-              the configured threshold or the revision cap was reached. It will
-              not be marked final until a reviewer records a decision.
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              This report was flagged because confidence fell below the
+              configured threshold or the revision cap was reached. The
+              narrative, risks, and citations below are available for review but
+              the report is not marked final until a reviewer records a
+              decision.
             </p>
           </CardContent>
         </Card>
