@@ -58,18 +58,25 @@ def build_real_llm(
     # ChatOpenAI.with_structured_output(method="json_mode") may only
     # prepend a prompt hint — which models like Gemma 4 on Ollama Cloud
     # ignore, producing prose that fails JSON parsing.
-    extra_kwargs = {}
     if structured_method == "json_mode":
-        extra_kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
-
-    llm = ChatOpenAI(
-        model=model,
-        api_key=SecretStr(api_key),
-        base_url=base_url,
-        temperature=temperature,
-        timeout=timeout_seconds,
-        max_retries=max_retries,
-        default_headers={"HTTP-Referer": "https://financialai.local"},
-        **extra_kwargs,
-    )
+        llm = ChatOpenAI(
+            model=model,
+            api_key=SecretStr(api_key),
+            base_url=base_url,
+            temperature=temperature,
+            timeout=timeout_seconds,
+            max_retries=max_retries,
+            default_headers={"HTTP-Referer": "https://financialai.local"},
+            model_kwargs={"response_format": {"type": "json_object"}},
+        )
+    else:
+        llm = ChatOpenAI(
+            model=model,
+            api_key=SecretStr(api_key),
+            base_url=base_url,
+            temperature=temperature,
+            timeout=timeout_seconds,
+            max_retries=max_retries,
+            default_headers={"HTTP-Referer": "https://financialai.local"},
+        )
     return _StructuredAdapter(llm, structured_method)

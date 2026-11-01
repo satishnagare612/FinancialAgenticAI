@@ -1,3 +1,13 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "sonarlint.rules": {
+            // Example: Elevate cognitive complexity warnings to errors
+            "python:S3776": {
+                "severity": "error"
+            },
+            // Example: Elevate undocumented HTTP exception status codes (like your 502 warning)
+            "python:S5302": {
+                "severity": "error"
+            }
+    }
 }

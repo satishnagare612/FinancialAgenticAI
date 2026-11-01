@@ -87,3 +87,4 @@ api-test-results.json
 
 .vercel
 .env*
+.vscode/settings.json
